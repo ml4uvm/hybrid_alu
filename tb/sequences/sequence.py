@@ -4,15 +4,18 @@ import random
 from pyuvm import uvm_sequence
 from tb.sequences.sequence_item import ALUSeqItem
 
+# 🔥 Hybrid imports
+from hybrid.hybrid_selector import select_mode
+from hybrid.ml_pool import MLTestPool
+
 
 class ALUSequence(uvm_sequence):
 
     def __init__(self, name="ALUSequence", num_tests=300, use_ml=False):
         super().__init__(name)
         self.num_tests = num_tests
-        self.use_ml = use_ml
+        self.use_ml = use_ml  # not used now (kept for compatibility)
 
-    # ADD THIS FUNCTION
     def generate_value(self, t):
         if t == "ZERO":
             return 0
@@ -26,50 +29,53 @@ class ALUSequence(uvm_sequence):
     async def body(self):
 
         # =========================================================
-        # ML MODE (clustered testcases)
+        # HYBRID MODE (ML + Random)
         # =========================================================
-        if self.use_ml:
 
-            base_dir = os.path.dirname(__file__)
-            csv_path = os.path.join(base_dir, "../../ml/clustered_tests.csv")
+        base_dir = os.path.dirname(__file__)
+        csv_path = os.path.join(base_dir, "../../ml/clustered_tests.csv")
 
-            df = pd.read_csv(csv_path)
+        # Load ML test pool
+        ml_pool = MLTestPool(csv_path)
 
-            print(f"[ML MODE] Running {len(df)} testcases")
+        reverse_map = {
+            0: "ZERO",
+            1: "SMALL",
+            2: "LARGE",
+            3: "NEG"
+        }
 
-            reverse_map = {
-                0: "ZERO",
-                1: "SMALL",
-                2: "LARGE",
-                3: "NEG"
-            }
+        print(f"[HYBRID MODE] Running {self.num_tests} tests")
 
-            for _, row in df.iterrows():
-                item = ALUSeqItem("item")
+        for i in range(self.num_tests):
 
-                item.opcode = int(row['opcode'])
+            # 🔥 Hybrid decision (epsilon-greedy)
+            mode = select_mode()
 
-                a_type = reverse_map[int(row['a_type'])]
-                b_type = reverse_map[int(row['b_type'])]
+            item = ALUSeqItem("item")
+
+            if mode == "ml":
+                tc = ml_pool.get_next()
+
+                item.opcode = tc["opcode"]
+
+                a_type = reverse_map[tc["a_type"]]
+                b_type = reverse_map[tc["b_type"]]
 
                 item.a = self.generate_value(a_type)
                 item.b = self.generate_value(b_type)
 
-               # print("ML INPUT:", item.opcode, item.a, item.b)
+                # Debug (optional)
+                # print(f"[ML] opcode={item.opcode}, a={item.a}, b={item.b}")
 
-                await self.start_item(item)
-                await self.finish_item(item)
-
-        # =========================================================
-        # BASELINE MODE (random)
-        # =========================================================
-        else:
-
-            print(f"[BASELINE MODE] Running {self.num_tests} random tests")
-
-            for _ in range(self.num_tests):
-                item = ALUSeqItem("item")
+            else:
                 item.randomize()
 
-                await self.start_item(item)
-                await self.finish_item(item)
+                # Debug (optional)
+                # print(f"[RANDOM] opcode={item.opcode}, a={item.a}, b={item.b}")
+
+            # Tag mode for logging later
+            item.mode = mode
+
+            await self.start_item(item)
+            await self.finish_item(item)

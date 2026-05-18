@@ -14,7 +14,7 @@ class ALUSequence(uvm_sequence):
     def __init__(self, name="ALUSequence", num_tests=300, use_ml=False):
         super().__init__(name)
         self.num_tests = num_tests
-        self.use_ml = use_ml  # not used now (kept for compatibility)
+        self.use_ml = use_ml
 
     def generate_value(self, t):
         if t == "ZERO":
@@ -27,10 +27,6 @@ class ALUSequence(uvm_sequence):
             return random.randint(-20, -1)
 
     async def body(self):
-
-        # =========================================================
-        # HYBRID MODE (ML + Random)
-        # =========================================================
 
         base_dir = os.path.dirname(__file__)
         csv_path = os.path.join(base_dir, "../../ml/clustered_tests.csv")
@@ -45,16 +41,39 @@ class ALUSequence(uvm_sequence):
             3: "NEG"
         }
 
-        print(f"[HYBRID MODE] Running {self.num_tests} tests")
+        # =========================================================
+        # BASELINE MODE
+        # =========================================================
+        if not self.use_ml:
+            print(f"[BASELINE MODE] Running {self.num_tests} random tests")
+
+        # =========================================================
+        # HYBRID MODE
+        # =========================================================
+        else:
+            print(f"[HYBRID MODE] Running {self.num_tests} tests")
 
         for i in range(self.num_tests):
 
-            # 🔥 Hybrid decision (epsilon-greedy)
-            mode = select_mode()
+            # =========================================================
+            # BASELINE MODE (pure random)
+            # =========================================================
+            if not self.use_ml:
+                mode = "random"
+
+            # =========================================================
+            # HYBRID MODE (ML + random)
+            # =========================================================
+            else:
+                mode = select_mode()
 
             item = ALUSeqItem("item")
 
+            # =========================================================
+            # ML TESTCASE
+            # =========================================================
             if mode == "ml":
+
                 tc = ml_pool.get_next()
 
                 item.opcode = tc["opcode"]
@@ -65,16 +84,20 @@ class ALUSequence(uvm_sequence):
                 item.a = self.generate_value(a_type)
                 item.b = self.generate_value(b_type)
 
-                # Debug (optional)
+                # Optional debug
                 # print(f"[ML] opcode={item.opcode}, a={item.a}, b={item.b}")
 
+            # =========================================================
+            # RANDOM TESTCASE
+            # =========================================================
             else:
+
                 item.randomize()
 
-                # Debug (optional)
+                # Optional debug
                 # print(f"[RANDOM] opcode={item.opcode}, a={item.a}, b={item.b}")
 
-            # Tag mode for logging later
+            # Store mode for logging
             item.mode = mode
 
             await self.start_item(item)

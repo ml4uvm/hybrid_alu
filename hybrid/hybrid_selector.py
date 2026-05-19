@@ -1,52 +1,63 @@
 import random
+
 from hybrid.hybrid_config import (
-    EPSILON,
-    USE_DYNAMIC_EPSILON,
-    COVERAGE_THRESHOLD,
-    EPSILON_LOW,
-    EPSILON_HIGH,
-    MIN_EPSILON,
-    MAX_EPSILON,
+    EXPLORATION_EPSILON,
     DEBUG_PRINT
 )
 
 
-def get_epsilon(current_coverage=None):
+# =========================================================
+# Adaptive hybrid selector
+# =========================================================
+
+def select_mode(stagnated=False):
+
     """
-    Returns epsilon value (static or dynamic)
-    """
+    Hybrid selection policy
 
-    if not USE_DYNAMIC_EPSILON:
-        return EPSILON
-
-    # Dynamic epsilon based on coverage
-    if current_coverage is None:
-        return EPSILON
-
-    if current_coverage < COVERAGE_THRESHOLD:
-        eps = EPSILON_LOW
-    else:
-        eps = EPSILON_HIGH
-
-    # Clamp values
-    eps = max(MIN_EPSILON, min(MAX_EPSILON, eps))
-    return eps
-
-
-def select_mode(current_coverage=None):
-    """
-    Epsilon-greedy selection
-    Returns: "ml" or "random"
+    Behavior:
+    -----------------------------------------
+    - No stagnation  -> pure ML
+    - Stagnation     -> epsilon exploration
     """
 
-    eps = get_epsilon(current_coverage)
+    # =====================================================
+    # Pure ML phase
+    # =====================================================
+
+    if not stagnated:
+
+        mode = "ml"
+
+        if DEBUG_PRINT:
+            print(
+                "[HYBRID] "
+                "Pure ML exploitation"
+            )
+
+        return mode
+
+    # =====================================================
+    # Exploration phase
+    # =====================================================
+
+    eps = EXPLORATION_EPSILON
 
     if random.random() < eps:
+
         mode = "random"
+
     else:
+
         mode = "ml"
 
     if DEBUG_PRINT:
-        print(f"[HYBRID] epsilon={eps:.3f}, mode={mode}")
+
+        print(
+            f"[HYBRID] "
+            f"Stagnation detected | "
+            f"epsilon={eps:.3f} | "
+            f"mode={mode}"
+        )
 
     return mode

@@ -18,6 +18,9 @@ class ALUTest(uvm_test):
 
         MODE = "hybrid"     # "baseline" or "hybrid"
 
+        # Common testcase count
+        NUM_TESTS = 300
+
         # =====================================================
         # BASELINE MODE (pure random)
         # =====================================================
@@ -27,7 +30,7 @@ class ALUTest(uvm_test):
 
             seq = ALUSequence(
                 "seq",
-                num_tests=300,
+                num_tests=NUM_TESTS,
                 use_ml=False
             )
 
@@ -40,7 +43,7 @@ class ALUTest(uvm_test):
 
             seq = ALUSequence(
                 "seq",
-                num_tests=300,
+                num_tests=NUM_TESTS,
                 use_ml=True
             )
 
